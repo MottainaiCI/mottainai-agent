@@ -197,7 +197,6 @@ func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
 	}
 	conn, channel, _, _, _, err := b.Connect(
 		b.GetConfig().ResultBackend,
-		"",
 		b.GetConfig().TLSConfig,
 		b.GetConfig().AMQP.Exchange,     // exchange name
 		b.GetConfig().AMQP.ExchangeType, // exchange type
@@ -279,7 +278,6 @@ func (b *Backend) updateState(taskState *tasks.TaskState) error {
 	}
 	conn, channel, queue, confirmsChan, _, err := b.Connect(
 		b.GetConfig().ResultBackend,
-		"",
 		b.GetConfig().TLSConfig,
 		b.GetConfig().AMQP.Exchange,     // exchange name
 		b.GetConfig().AMQP.ExchangeType, // exchange type
@@ -351,7 +349,6 @@ func (b *Backend) markTaskCompleted(signature *tasks.Signature, taskState *tasks
 	}
 	conn, channel, queue, confirmsChan, _, err := b.Connect(
 		b.GetConfig().ResultBackend,
-		"",
 		b.GetConfig().TLSConfig,
 		b.GetConfig().AMQP.Exchange,     // exchange name
 		b.GetConfig().AMQP.ExchangeType, // exchange type

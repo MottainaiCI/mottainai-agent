@@ -3,10 +3,8 @@ package machinery
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -21,22 +19,14 @@ import (
 
 // Worker represents a single worker process
 type Worker struct {
-	server            *Server
-	ConsumerTag       string
-	Concurrency       int
-	Queue             string
-	errorHandler      func(err error)
-	preTaskHandler    func(*tasks.Signature)
-	postTaskHandler   func(*tasks.Signature)
-	preConsumeHandler func(*Worker) bool
+	server          *Server
+	ConsumerTag     string
+	Concurrency     int
+	Queue           string
+	errorHandler    func(err error)
+	preTaskHandler  func(*tasks.Signature)
+	postTaskHandler func(*tasks.Signature)
 }
-
-var (
-	// ErrWorkerQuitGracefully is return when worker quit gracefully
-	ErrWorkerQuitGracefully = errors.New("Worker quit gracefully")
-	// ErrWorkerQuitGracefully is return when worker quit abruptly
-	ErrWorkerQuitAbruptly = errors.New("Worker quit abruptly")
-)
 
 // Launch starts a new worker process. The worker subscribes
 // to the default queue and processes incoming registered tasks
@@ -55,13 +45,13 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 
 	// Log some useful information about worker configuration
 	log.INFO.Printf("Launching a worker with the following settings:")
-	log.INFO.Printf("- Broker: %s", RedactURL(cnf.Broker))
+	log.INFO.Printf("- Broker: %s", cnf.Broker)
 	if worker.Queue == "" {
 		log.INFO.Printf("- DefaultQueue: %s", cnf.DefaultQueue)
 	} else {
 		log.INFO.Printf("- CustomQueue: %s", worker.Queue)
 	}
-	log.INFO.Printf("- ResultBackend: %s", RedactURL(cnf.ResultBackend))
+	log.INFO.Printf("- ResultBackend: %s", cnf.ResultBackend)
 	if cnf.AMQP != nil {
 		log.INFO.Printf("- AMQP: %s", cnf.AMQP.Exchange)
 		log.INFO.Printf("  - Exchange: %s", cnf.AMQP.Exchange)
@@ -70,7 +60,6 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 		log.INFO.Printf("  - PrefetchCount: %d", cnf.AMQP.PrefetchCount)
 	}
 
-	var signalWG sync.WaitGroup
 	// Goroutine to start broker consumption and handle retries when broker connection dies
 	go func() {
 		for {
@@ -83,7 +72,6 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 					log.WARNING.Printf("Broker failed with error: %s", err)
 				}
 			} else {
-				signalWG.Wait()
 				errorsChan <- err // stop the goroutine
 				return
 			}
@@ -106,14 +94,12 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 						// After first Ctrl+C start quitting the worker gracefully
 						log.WARNING.Print("Waiting for running tasks to finish before shutting down")
 						go func() {
-							signalWG.Add(1)
 							worker.Quit()
-							errorsChan <- ErrWorkerQuitGracefully
-							signalWG.Done()
+							errorsChan <- errors.New("Worker quit gracefully")
 						}()
 					} else {
 						// Abort the program when user hits Ctrl+C second time in a row
-						errorsChan <- ErrWorkerQuitAbruptly
+						errorsChan <- errors.New("Worker quit abruptly")
 					}
 				}
 			}
@@ -283,11 +269,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		return nil
 	}
 
-	// There is no chord callback, just return
-	if signature.ChordCallback == nil {
-		return nil
-	}
-
 	// Check if all task in the group has completed
 	groupCompleted, err := worker.server.GetBackend().GroupCompleted(
 		signature.GroupUUID,
@@ -307,6 +288,11 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		defer worker.server.GetBackend().PurgeGroupMeta(signature.GroupUUID)
 	}
 
+	// There is no chord callback, just return
+	if signature.ChordCallback == nil {
+		return nil
+	}
+
 	// Trigger chord callback
 	shouldTrigger, err := worker.server.GetBackend().TriggerChord(signature.GroupUUID)
 	if err != nil {
@@ -324,12 +310,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		signature.GroupTaskCount,
 	)
 	if err != nil {
-		log.ERROR.Printf(
-			"Failed to get tasks states for group:[%s]. Task count:[%d]. The chord may not be triggered. Error:[%s]",
-			signature.GroupUUID,
-			signature.GroupTaskCount,
-			err,
-		)
 		return nil
 	}
 
@@ -412,29 +392,7 @@ func (worker *Worker) SetPostTaskHandler(handler func(*tasks.Signature)) {
 	worker.postTaskHandler = handler
 }
 
-//SetPreConsumeHandler sets a custom handler for the end of a job
-func (worker *Worker) SetPreConsumeHandler(handler func(*Worker) bool) {
-	worker.preConsumeHandler = handler
-}
-
 //GetServer returns server
 func (worker *Worker) GetServer() *Server {
 	return worker.server
-}
-
-//
-func (worker *Worker) PreConsumeHandler() bool {
-	if worker.preConsumeHandler == nil {
-		return true
-	}
-
-	return worker.preConsumeHandler(worker)
-}
-
-func RedactURL(urlString string) string {
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return urlString
-	}
-	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 }

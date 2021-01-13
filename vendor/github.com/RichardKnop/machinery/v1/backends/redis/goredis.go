@@ -3,11 +3,9 @@ package redis
 import (
 	"bytes"
 	"encoding/json"
-	"strings"
+	"github.com/go-redis/redis"
 	"sync"
 	"time"
-
-	"github.com/go-redis/redis"
 
 	"github.com/RichardKnop/machinery/v1/backends/iface"
 	"github.com/RichardKnop/machinery/v1/common"
@@ -17,7 +15,7 @@ import (
 	"github.com/RichardKnop/redsync"
 )
 
-// BackendGR represents a Redis result backend
+// Backend represents a Redis result backend
 type BackendGR struct {
 	common.Backend
 	rclient  redis.UniversalClient
@@ -30,27 +28,15 @@ type BackendGR struct {
 	redisOnce  sync.Once
 }
 
-// NewGR creates Backend instance
+// New creates Backend instance
 func NewGR(cnf *config.Config, addrs []string, db int) iface.Backend {
 	b := &BackendGR{
 		Backend: common.NewBackend(cnf),
 	}
-	parts := strings.Split(addrs[0], "@")
-	if len(parts) == 2 {
-		// with passwrod
-		b.password = parts[0]
-		addrs[0] = parts[1]
-	}
-
 	ropt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: b.password,
+		Addrs: addrs,
+		DB:    db,
 	}
-	if cnf.Redis != nil {
-		ropt.MasterName = cnf.Redis.MasterName
-	}
-
 	b.rclient = redis.NewUniversalClient(ropt)
 	return b
 }
@@ -68,13 +54,12 @@ func (b *BackendGR) InitGroup(groupUUID string, taskUUIDs []string) error {
 		return err
 	}
 
-	expiration := b.getExpiration()
-	err = b.rclient.Set(groupUUID, encoded, expiration).Err()
+	err = b.rclient.Set(groupUUID, encoded, 0).Err()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return b.setExpirationTime(groupUUID)
 }
 
 // GroupCompleted returns true if all tasks in a group finished
@@ -139,13 +124,12 @@ func (b *BackendGR) TriggerChord(groupUUID string) (bool, error) {
 		return false, err
 	}
 
-	expiration := b.getExpiration()
-	err = b.rclient.Set(groupUUID, encoded, expiration).Err()
+	err = b.rclient.Set(groupUUID, encoded, 0).Err()
 	if err != nil {
 		return false, err
 	}
 
-	return true, nil
+	return true, b.setExpirationTime(groupUUID)
 }
 
 func (b *BackendGR) mergeNewTaskState(newState *tasks.TaskState) {
@@ -289,22 +273,27 @@ func (b *BackendGR) updateState(taskState *tasks.TaskState) error {
 		return err
 	}
 
-	expiration := b.getExpiration()
-	_, err = b.rclient.Set(taskState.TaskUUID, encoded, expiration).Result()
+	_, err = b.rclient.Set(taskState.TaskUUID, encoded, 0).Result()
+	if err != nil {
+		return err
+	}
+
+	return b.setExpirationTime(taskState.TaskUUID)
+}
+
+// setExpirationTime sets expiration timestamp on a stored task state
+func (b *BackendGR) setExpirationTime(key string) error {
+	expiresIn := b.GetConfig().ResultsExpireIn
+	if expiresIn == 0 {
+		// // expire results after 1 hour by default
+		expiresIn = config.DefaultResultsExpireIn
+	}
+	expirationTimestamp := time.Now().Add(time.Duration(expiresIn) * time.Second)
+
+	_, err := b.rclient.ExpireAt(key, expirationTimestamp).Result()
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// getExpiration returns expiration for a stored task state
-func (b *BackendGR) getExpiration() time.Duration {
-	expiresIn := b.GetConfig().ResultsExpireIn
-	if expiresIn == 0 {
-		// expire results after 1 hour by default
-		expiresIn = config.DefaultResultsExpireIn
-	}
-
-	return time.Duration(expiresIn) * time.Second
 }

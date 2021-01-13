@@ -8,25 +8,14 @@ package auth
 
 import (
 	"context"
-	"fmt"
 
+	"go.mongodb.org/mongo-driver/x/mongo/driver"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/description"
 )
 
 func newDefaultAuthenticator(cred *Cred) (Authenticator, error) {
-	scram, err := newScramSHA256Authenticator(cred)
-	if err != nil {
-		return nil, newAuthError("failed to create internal authenticator", err)
-	}
-	speculative, ok := scram.(SpeculativeAuthenticator)
-	if !ok {
-		typeErr := fmt.Errorf("expected SCRAM authenticator to be SpeculativeAuthenticator but got %T", scram)
-		return nil, newAuthError("failed to create internal authenticator", typeErr)
-	}
-
 	return &DefaultAuthenticator{
-		Cred:                     cred,
-		speculativeAuthenticator: speculative,
+		Cred: cred,
 	}, nil
 }
 
@@ -34,25 +23,14 @@ func newDefaultAuthenticator(cred *Cred) (Authenticator, error) {
 // on the server version.
 type DefaultAuthenticator struct {
 	Cred *Cred
-
-	// The authenticator to use for speculative authentication. Because the correct auth mechanism is unknown when doing
-	// the initial isMaster, SCRAM-SHA-256 is used for the speculative attempt.
-	speculativeAuthenticator SpeculativeAuthenticator
-}
-
-var _ SpeculativeAuthenticator = (*DefaultAuthenticator)(nil)
-
-// CreateSpeculativeConversation creates a speculative conversation for SCRAM authentication.
-func (a *DefaultAuthenticator) CreateSpeculativeConversation() (SpeculativeConversation, error) {
-	return a.speculativeAuthenticator.CreateSpeculativeConversation()
 }
 
 // Auth authenticates the connection.
-func (a *DefaultAuthenticator) Auth(ctx context.Context, cfg *Config) error {
+func (a *DefaultAuthenticator) Auth(ctx context.Context, desc description.Server, conn driver.Connection) error {
 	var actual Authenticator
 	var err error
 
-	switch chooseAuthMechanism(cfg.Description) {
+	switch chooseAuthMechanism(desc) {
 	case SCRAMSHA256:
 		actual, err = newScramSHA256Authenticator(a.Cred)
 	case SCRAMSHA1:
@@ -65,7 +43,7 @@ func (a *DefaultAuthenticator) Auth(ctx context.Context, cfg *Config) error {
 		return newAuthError("error creating authenticator", err)
 	}
 
-	return actual.Auth(ctx, cfg)
+	return actual.Auth(ctx, desc, conn)
 }
 
 // If a server provides a list of supported mechanisms, we choose

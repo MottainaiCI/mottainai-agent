@@ -20,8 +20,3 @@ func (e ConnectionError) Error() string {
 	}
 	return fmt.Sprintf("connection(%s) %s", e.ConnectionID, e.message)
 }
-
-// Unwrap returns the underlying error.
-func (e ConnectionError) Unwrap() error {
-	return e.Wrapped
-}

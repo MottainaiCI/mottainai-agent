@@ -25,7 +25,6 @@ type TaskState struct {
 	Results   []*TaskResult `bson:"results"`
 	Error     string        `bson:"error"`
 	CreatedAt time.Time     `bson:"created_at"`
-	TTL       int64         `bson:"ttl,omitempty"`
 }
 
 // GroupMeta stores useful metadata about tasks within the same group
@@ -37,7 +36,6 @@ type GroupMeta struct {
 	ChordTriggered bool      `bson:"chord_triggered"`
 	Lock           bool      `bson:"lock"`
 	CreatedAt      time.Time `bson:"created_at"`
-	TTL            int64     `bson:"ttl,omitempty"`
 }
 
 // NewPendingTaskState ...

@@ -24,18 +24,16 @@ import (
 
 // ListDatabases performs a listDatabases operation.
 type ListDatabases struct {
-	filter              bsoncore.Document
-	authorizedDatabases *bool
-	nameOnly            *bool
-	session             *session.Client
-	clock               *session.ClusterClock
-	monitor             *event.CommandMonitor
-	database            string
-	deployment          driver.Deployment
-	readPreference      *readpref.ReadPref
-	retry               *driver.RetryMode
-	selector            description.ServerSelector
-	crypt               *driver.Crypt
+	filter         bsoncore.Document
+	nameOnly       *bool
+	session        *session.Client
+	clock          *session.ClusterClock
+	monitor        *event.CommandMonitor
+	database       string
+	deployment     driver.Deployment
+	readPreference *readpref.ReadPref
+	retry          *driver.RetryMode
+	selector       description.ServerSelector
 
 	result ListDatabasesResult
 }
@@ -170,7 +168,6 @@ func (ld *ListDatabases) Execute(ctx context.Context) error {
 		RetryMode:      ld.retry,
 		Type:           driver.Read,
 		Selector:       ld.selector,
-		Crypt:          ld.crypt,
 	}.Execute(ctx, nil)
 
 }
@@ -184,10 +181,6 @@ func (ld *ListDatabases) command(dst []byte, desc description.SelectedServer) ([
 	if ld.nameOnly != nil {
 
 		dst = bsoncore.AppendBooleanElement(dst, "nameOnly", *ld.nameOnly)
-	}
-	if ld.authorizedDatabases != nil {
-
-		dst = bsoncore.AppendBooleanElement(dst, "authorizedDatabases", *ld.authorizedDatabases)
 	}
 
 	return dst, nil
@@ -210,16 +203,6 @@ func (ld *ListDatabases) NameOnly(nameOnly bool) *ListDatabases {
 	}
 
 	ld.nameOnly = &nameOnly
-	return ld
-}
-
-// AuthorizedDatabases specifies whether to only return databases which the user is authorized to use."
-func (ld *ListDatabases) AuthorizedDatabases(authorizedDatabases bool) *ListDatabases {
-	if ld == nil {
-		ld = new(ListDatabases)
-	}
-
-	ld.authorizedDatabases = &authorizedDatabases
 	return ld
 }
 
@@ -301,15 +284,5 @@ func (ld *ListDatabases) Retry(retry driver.RetryMode) *ListDatabases {
 	}
 
 	ld.retry = &retry
-	return ld
-}
-
-// Crypt sets the Crypt object to use for automatic encryption and decryption.
-func (ld *ListDatabases) Crypt(crypt *driver.Crypt) *ListDatabases {
-	if ld == nil {
-		ld = new(ListDatabases)
-	}
-
-	ld.crypt = crypt
 	return ld
 }

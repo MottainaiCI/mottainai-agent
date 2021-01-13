@@ -16,7 +16,6 @@ type Broker interface {
 	StopConsuming()
 	Publish(ctx context.Context, task *tasks.Signature) error
 	GetPendingTasks(queue string) ([]*tasks.Signature, error)
-	GetDelayedTasks() ([]*tasks.Signature, error)
 	AdjustRoutingKey(s *tasks.Signature)
 }
 
@@ -25,5 +24,4 @@ type Broker interface {
 type TaskProcessor interface {
 	Process(signature *tasks.Signature) error
 	CustomQueue() string
-	PreConsumeHandler() bool
 }

@@ -88,7 +88,7 @@ func AnnotateSpanWithSignatureInfo(span opentracing.Span, signature *tasks.Signa
 	span.SetTag("signature.uuid", signature.UUID)
 
 	if signature.GroupUUID != "" {
-		span.SetTag("signature.group.uuid", signature.GroupUUID)
+		span.SetTag("signature.group.uuid", signature.UUID)
 	}
 
 	if signature.ChordCallback != nil {

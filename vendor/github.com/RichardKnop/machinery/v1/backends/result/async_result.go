@@ -201,8 +201,8 @@ func (chainAsyncResult *ChainAsyncResult) GetWithTimeout(timeoutDuration, sleepD
 		default:
 
 			for _, asyncResult := range chainAsyncResult.asyncResults {
-				_, err = asyncResult.Touch()
-				if err != nil {
+				_, errcur := asyncResult.Touch()
+				if errcur != nil {
 					return nil, err
 				}
 			}

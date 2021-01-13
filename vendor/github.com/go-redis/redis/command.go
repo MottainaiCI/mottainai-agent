@@ -999,20 +999,14 @@ func xMessageSliceParser(rd *proto.Reader, n int64) (interface{}, error) {
 				return nil, err
 			}
 
-			var values map[string]interface{}
-
 			v, err := rd.ReadArrayReply(stringInterfaceMapParser)
 			if err != nil {
-				if err != proto.Nil {
-					return nil, err
-				}
-			} else {
-				values = v.(map[string]interface{})
+				return nil, err
 			}
 
 			msgs = append(msgs, XMessage{
 				ID:     id,
-				Values: values,
+				Values: v.(map[string]interface{}),
 			})
 			return nil, nil
 		})

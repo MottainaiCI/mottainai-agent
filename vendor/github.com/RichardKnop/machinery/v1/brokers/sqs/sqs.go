@@ -57,6 +57,11 @@ func New(cnf *config.Config) iface.Broker {
 	return b
 }
 
+// GetPendingTasks returns a slice of task.Signatures waiting in the queue
+func (b *Broker) GetPendingTasks(queue string) ([]*tasks.Signature, error) {
+	return nil, errors.New("Not implemented")
+}
+
 // StartConsuming enters a loop and waits for incoming messages
 func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcessor iface.TaskProcessor) (bool, error) {
 	b.Broker.StartConsuming(consumerTag, concurrency, taskProcessor)
@@ -205,10 +210,6 @@ func (b *Broker) consumeOne(delivery *awssqs.ReceiveMessageOutput, taskProcessor
 	decoder.UseNumber()
 	if err := decoder.Decode(sig); err != nil {
 		log.ERROR.Printf("unmarshal error. the delivery is %v", delivery)
-		// if the unmarshal fails, remove the delivery from the queue
-		if delErr := b.deleteOne(delivery); delErr != nil {
-			log.ERROR.Printf("error when deleting the delivery. delivery is %v, Error=%s", delivery, delErr)
-		}
 		return err
 	}
 	if delivery.Messages[0].ReceiptHandle != nil {

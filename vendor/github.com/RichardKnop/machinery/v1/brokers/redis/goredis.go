@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,7 +20,7 @@ import (
 	"github.com/go-redis/redis"
 )
 
-// BrokerGR represents a Redis broker
+// Broker represents a Redis broker
 type BrokerGR struct {
 	common.Broker
 	rclient      redis.UniversalClient
@@ -34,27 +33,13 @@ type BrokerGR struct {
 	redisOnce  sync.Once
 }
 
-// NewGR creates new Broker instance
+// New creates new Broker instance
 func NewGR(cnf *config.Config, addrs []string, db int) iface.Broker {
 	b := &BrokerGR{Broker: common.NewBroker(cnf)}
-
-	var password string
-	parts := strings.Split(addrs[0], "@")
-	if len(parts) == 2 {
-		// with password
-		password = parts[0]
-		addrs[0] = parts[1]
-	}
-
 	ropt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: password,
+		Addrs: addrs,
+		DB:    db,
 	}
-	if cnf.Redis != nil {
-		ropt.MasterName = cnf.Redis.MasterName
-	}
-
 	b.rclient = redis.NewUniversalClient(ropt)
 	if cnf.Redis.DelayedTasksKey != "" {
 		redisDelayedTasksKey = cnf.Redis.DelayedTasksKey
@@ -68,7 +53,7 @@ func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProce
 	defer b.consumingWG.Done()
 
 	if concurrency < 1 {
-		concurrency = runtime.NumCPU() * 2
+		concurrency = 1
 	}
 
 	b.Broker.StartConsuming(consumerTag, concurrency, taskProcessor)
@@ -143,7 +128,7 @@ func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProce
 				decoder := json.NewDecoder(bytes.NewReader(task))
 				decoder.UseNumber()
 				if err := decoder.Decode(signature); err != nil {
-					log.ERROR.Print(errs.NewErrCouldNotUnmarshalTaskSignature(task, err))
+					log.ERROR.Print(errs.NewErrCouldNotUnmarshaTaskSignature(task, err))
 				}
 
 				if err := b.Publish(context.Background(), signature); err != nil {
@@ -224,26 +209,6 @@ func (b *BrokerGR) GetPendingTasks(queue string) ([]*tasks.Signature, error) {
 	return taskSignatures, nil
 }
 
-// GetDelayedTasks returns a slice of task signatures that are scheduled, but not yet in the queue
-func (b *BrokerGR) GetDelayedTasks() ([]*tasks.Signature, error) {
-	results, err := b.rclient.ZRange(redisDelayedTasksKey, 0, -1).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	taskSignatures := make([]*tasks.Signature, len(results))
-	for i, result := range results {
-		signature := new(tasks.Signature)
-		decoder := json.NewDecoder(strings.NewReader(result))
-		decoder.UseNumber()
-		if err := decoder.Decode(signature); err != nil {
-			return nil, err
-		}
-		taskSignatures[i] = signature
-	}
-	return taskSignatures, nil
-}
-
 // consume takes delivered messages from the channel and manages a worker pool
 // to process tasks concurrently
 func (b *BrokerGR) consume(deliveries <-chan []byte, concurrency int, taskProcessor iface.TaskProcessor) error {
@@ -296,13 +261,13 @@ func (b *BrokerGR) consumeOne(delivery []byte, taskProcessor iface.TaskProcessor
 	decoder := json.NewDecoder(bytes.NewReader(delivery))
 	decoder.UseNumber()
 	if err := decoder.Decode(signature); err != nil {
-		return errs.NewErrCouldNotUnmarshalTaskSignature(delivery, err)
+		return errs.NewErrCouldNotUnmarshaTaskSignature(delivery, err)
 	}
 
 	// If the task is not registered, we requeue it,
 	// there might be different workers for processing specific tasks
 	if !b.IsTaskRegistered(signature.Name) {
-		log.INFO.Printf("Task not registered with this worker. Requeuing message: %s", delivery)
+		log.INFO.Printf("Task not registered with this worker. Requeing message: %s", delivery)
 
 		b.rclient.RPush(getQueueGR(b.GetConfig(), taskProcessor), delivery)
 		return nil

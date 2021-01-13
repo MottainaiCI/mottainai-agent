@@ -33,7 +33,7 @@ information about the host computer:
 * [Network](#network)
 * [PCI](#pci)
 * [GPU](#gpu)
-
+* [YAML and JSON serialization](#serialization)
 
 ### Overriding the root mountpoint `ghw` uses
 
@@ -55,6 +55,28 @@ Alternately, you can use the `ghw.WithChroot()` function like so:
 
 ```go
 cpu, err := ghw.CPU(ghw.WithChroot("/host"))
+```
+
+### Disabling warning messages
+
+When `ghw` isn't able to retrieve some information, it may print certain
+warning messages to `stderr`. To disable these warnings, simply set the
+`GHW_DISABLE_WARNINGS` environs variable:
+
+```
+$ ghwc memory
+WARNING:
+Could not determine total physical bytes of memory. This may
+be due to the host being a virtual machine or container with no
+/var/log/syslog file, or the current user may not have necessary
+privileges to read the syslog. We are falling back to setting the
+total physical amount of memory to the total usable amount of memory
+memory (24GB physical, 24GB usable)
+```
+
+```
+$ GHW_DISABLE_WARNINGS=1 ghwc memory
+memory (24GB physical, 24GB usable)
 ```
 
 ### Memory
@@ -228,7 +250,10 @@ Each `ghw.Disk` struct contains the following fields:
 * `ghw.Disk.SizeBytes` contains the amount of storage the disk provides
 * `ghw.Disk.PhysicalBlockSizeBytes` contains the size of the physical blocks
   used on the disk, in bytes
-* `ghw.Disk.BusType` will be either "scsi" or "ide"
+* `ghw.Disk.BusType` is the type of bus used for the disk. It is of type
+  `ghw.BusType` which has a `ghw.BusType.String()` method that can be called to
+  return a string representation of the bus. This string will be "SCSI", "IDE",
+  "Virtio", or "NVMe"
 * `ghw.Disk.NUMANodeID` is the numeric index of the NUMA node this disk is
   local to, or -1
 * `ghw.Disk.Vendor` contains a string with the name of the hardware vendor for
@@ -411,8 +436,8 @@ The `ghw.NICCapability` struct contains the following fields:
   "tcp-segmentation-offload")
 * `ghw.NICCapability.IsEnabled` is a boolean indicating whether the capability
   is currently enabled/active on the NIC
-* `ghw.NICCapability.CanChange` is a boolean indicating whether the capability
-  may be turned on or off
+* `ghw.NICCapability.CanEnable` is a boolean indicating whether the capability
+  may be enabled
 
 ```go
 package main
@@ -759,7 +784,7 @@ import (
 )
 
 func main() {
-	gpu, err := ghw.GPU())
+	gpu, err := ghw.GPU()
 	if err != nil {
 		fmt.Printf("Error getting GPU info: %v", err)
 	}
@@ -787,6 +812,48 @@ information
 `ghw.TopologyNode` struct if you'd like to dig deeper into the NUMA/topology
 subsystem
 
+## Serialization
+
+All of the `ghw` `XXXInfo` structs -- e.g. `ghw.CPUInfo` -- have two methods
+for producing a serialized JSON or YAML string representation of the contained
+information:
+
+* `JSONString()` returns a string containing the information serialized into
+  JSON. It accepts a single boolean parameter indicating whether to use
+  indentation when outputting the string
+* `YAMLString()` returns a string containing the information serialized into
+  YAML
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/jaypipes/ghw"
+)
+
+func main() {
+	mem, err := ghw.Memory()
+	if err != nil {
+		fmt.Printf("Error getting memory info: %v", err)
+	}
+
+	fmt.Printf("%s", mem.YAMLString())
+}
+```
+
+the above example code prints the following out on my local workstation:
+
+```
+memory:
+  supported_page_sizes:
+  - 1073741824
+  - 2097152
+  total_physical_bytes: 25263415296
+  total_usable_bytes: 25263415296
+```
+
 ## Developers
 
 Contributions to `ghw` are welcomed! Fork the repo on GitHub and submit a pull
@@ -804,7 +871,7 @@ You can run unit tests easily using the `make test` command, like so:
 
 ```
 [jaypipes@uberbox ghw]$ make test
-go test github.com/jaypipes/ghw github.com/jaypipes/ghw/ghwc
+go test github.com/jaypipes/ghw github.com/jaypipes/ghw/cmd/ghwc
 ok      github.com/jaypipes/ghw 0.084s
-?       github.com/jaypipes/ghw/ghwc    [no test files]
+?       github.com/jaypipes/ghw/cmd/ghwc    [no test files]
 ```

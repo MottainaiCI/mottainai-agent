@@ -53,17 +53,16 @@ var (
 
 // Config holds all configuration for our program
 type Config struct {
-	Broker                  string           `yaml:"broker" envconfig:"BROKER"`
-	MultipleBrokerSeparator string           `yaml:"multiple_broker_separator" envconfig:"MULTIPLE_BROKEN_SEPARATOR"`
-	DefaultQueue            string           `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
-	ResultBackend           string           `yaml:"result_backend" envconfig:"RESULT_BACKEND"`
-	ResultsExpireIn         int              `yaml:"results_expire_in" envconfig:"RESULTS_EXPIRE_IN"`
-	AMQP                    *AMQPConfig      `yaml:"amqp"`
-	SQS                     *SQSConfig       `yaml:"sqs"`
-	Redis                   *RedisConfig     `yaml:"redis"`
-	GCPPubSub               *GCPPubSubConfig `yaml:"-" ignored:"true"`
-	MongoDB                 *MongoDBConfig   `yaml:"-" ignored:"true"`
-	TLSConfig               *tls.Config
+	Broker          string           `yaml:"broker" envconfig:"BROKER"`
+	DefaultQueue    string           `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
+	ResultBackend   string           `yaml:"result_backend" envconfig:"RESULT_BACKEND"`
+	ResultsExpireIn int              `yaml:"results_expire_in" envconfig:"RESULTS_EXPIRE_IN"`
+	AMQP            *AMQPConfig      `yaml:"amqp"`
+	SQS             *SQSConfig       `yaml:"sqs"`
+	Redis           *RedisConfig     `yaml:"redis"`
+	GCPPubSub       *GCPPubSubConfig `yaml:"-" ignored:"true"`
+	MongoDB         *MongoDBConfig   `yaml:"-" ignored:"true"`
+	TLSConfig       *tls.Config
 	// NoUnixSignals - when set disables signal handling in machinery
 	NoUnixSignals bool            `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
 	DynamoDB      *DynamoDBConfig `yaml:"dynamodb"`
@@ -143,11 +142,8 @@ type RedisConfig struct {
 
 	// DelayedTasksPollPeriod specifies the period in milliseconds when polling redis for delayed tasks
 	// Default: 20
-	DelayedTasksPollPeriod int    `yaml:"delayed_tasks_poll_period" envconfig:"REDIS_DELAYED_TASKS_POLL_PERIOD"`
-	DelayedTasksKey        string `yaml:"delayed_tasks_key" envconfig:"REDIS_DELAYED_TASKS_KEY"`
-
-	// MasterName specifies a redis master name in order to configure a sentinel-backed redis FailoverClient
-	MasterName string `yaml:"master_name" envconfig:"REDIS_MASTER_NAME"`
+	DelayedTasksPollPeriod int `yaml:"delayed_tasks_poll_period" envconfig:"REDIS_DELAYED_TASKS_POLL_PERIOD"`
+	DelayedTasksKey string `yaml:"delayed_tasks_key" envconfig:"REDIS_DELAYED_TASKS_KEY"`
 }
 
 // GCPPubSubConfig wraps GCP PubSub related configuration

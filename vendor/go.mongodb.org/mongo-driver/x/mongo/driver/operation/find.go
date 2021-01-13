@@ -24,7 +24,6 @@ import (
 
 // Find performs a find operation.
 type Find struct {
-	allowDiskUse        *bool
 	allowPartialResults *bool
 	awaitData           *bool
 	batchSize           *int32
@@ -50,7 +49,6 @@ type Find struct {
 	clock               *session.ClusterClock
 	collection          string
 	monitor             *event.CommandMonitor
-	crypt               *driver.Crypt
 	database            string
 	deployment          driver.Deployment
 	readConcern         *readconcern.ReadConcern
@@ -92,7 +90,6 @@ func (f *Find) Execute(ctx context.Context) error {
 		Client:            f.session,
 		Clock:             f.clock,
 		CommandMonitor:    f.monitor,
-		Crypt:             f.crypt,
 		Database:          f.database,
 		Deployment:        f.deployment,
 		ReadConcern:       f.readConcern,
@@ -105,12 +102,6 @@ func (f *Find) Execute(ctx context.Context) error {
 
 func (f *Find) command(dst []byte, desc description.SelectedServer) ([]byte, error) {
 	dst = bsoncore.AppendStringElement(dst, "find", f.collection)
-	if f.allowDiskUse != nil {
-		if desc.WireVersion == nil || !desc.WireVersion.Includes(4) {
-			return nil, errors.New("the 'allowDiskUse' command parameter requires a minimum server wire version of 4")
-		}
-		dst = bsoncore.AppendBooleanElement(dst, "allowDiskUse", *f.allowDiskUse)
-	}
 	if f.allowPartialResults != nil {
 		dst = bsoncore.AppendBooleanElement(dst, "allowPartialResults", *f.allowPartialResults)
 	}
@@ -178,16 +169,6 @@ func (f *Find) command(dst []byte, desc description.SelectedServer) ([]byte, err
 		dst = bsoncore.AppendBooleanElement(dst, "tailable", *f.tailable)
 	}
 	return dst, nil
-}
-
-// AllowDiskUse when true allows temporary data to be written to disk during the find command."
-func (f *Find) AllowDiskUse(allowDiskUse bool) *Find {
-	if f == nil {
-		f = new(Find)
-	}
-
-	f.allowDiskUse = &allowDiskUse
-	return f
 }
 
 // AllowPartialResults when true allows partial results to be returned if some shards are down.
@@ -437,16 +418,6 @@ func (f *Find) CommandMonitor(monitor *event.CommandMonitor) *Find {
 	}
 
 	f.monitor = monitor
-	return f
-}
-
-// Crypt sets the Crypt object to use for automatic encryption and decryption.
-func (f *Find) Crypt(crypt *driver.Crypt) *Find {
-	if f == nil {
-		f = new(Find)
-	}
-
-	f.crypt = crypt
 	return f
 }
 

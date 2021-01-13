@@ -5,20 +5,20 @@ import (
 	"fmt"
 )
 
-// ErrCouldNotUnmarshalTaskSignature ...
-type ErrCouldNotUnmarshalTaskSignature struct {
+// ErrCouldNotUnmarshaTaskSignature ...
+type ErrCouldNotUnmarshaTaskSignature struct {
 	msg    []byte
 	reason string
 }
 
 // Error implements the error interface
-func (e ErrCouldNotUnmarshalTaskSignature) Error() string {
+func (e ErrCouldNotUnmarshaTaskSignature) Error() string {
 	return fmt.Sprintf("Could not unmarshal '%s' into a task signature: %v", e.msg, e.reason)
 }
 
-// NewErrCouldNotUnmarshalTaskSignature returns new ErrCouldNotUnmarshalTaskSignature instance
-func NewErrCouldNotUnmarshalTaskSignature(msg []byte, err error) ErrCouldNotUnmarshalTaskSignature {
-	return ErrCouldNotUnmarshalTaskSignature{msg: msg, reason: err.Error()}
+// NewErrCouldNotUnmarshaTaskSignature returns new ErrCouldNotUnmarshaTaskSignature instance
+func NewErrCouldNotUnmarshaTaskSignature(msg []byte, err error) ErrCouldNotUnmarshaTaskSignature {
+	return ErrCouldNotUnmarshaTaskSignature{msg: msg, reason: err.Error()}
 }
 
 // ErrConsumerStopped indicates that the operation is now illegal because of the consumer being stopped.
