@@ -2,7 +2,7 @@
 
 /*
 
-Copyright (C) 2017-2018  Ettore Di Giacinto <mudler@gentoo.org>
+Copyright (C) 2017-2021  Ettore Di Giacinto <mudler@gentoo.org>
                          Daniele Rondina <geaaru@sabayonlinux.org>
 Credits goes also to Gogs authors, some code portions and re-implemented design
 are also coming from the Gogs project, which is using the go-macaron framework
@@ -33,7 +33,6 @@ import (
 
 	tasks "github.com/MottainaiCI/mottainai-server/pkg/tasks"
 
-	"container/list"
 	"os"
 	"path"
 	"strings"
@@ -45,7 +44,6 @@ import (
 	lxd_compose_specs "github.com/MottainaiCI/lxd-compose/pkg/specs"
 
 	lxd "github.com/lxc/lxd/client"
-	lxd_api "github.com/lxc/lxd/shared/api"
 )
 
 func NewLxdExecutor(config *setting.Config) *LxdExecutor {
@@ -80,6 +78,7 @@ func (l *LxdExecutor) Setup(docID string) error {
 	// Lxd compose code require his config
 	lxdc_config := lxd_compose_specs.NewLxdComposeConfig(l.Config.Viper)
 	lxdc_config.GetLogging().PushProgressBar = true
+	lxdc_config.GetLogging().Color = true
 	lxdc_logger := lxd_compose_log.NewLxdCLogger(lxdc_config)
 	lxdc_logger.SetAsDefault()
 
@@ -103,6 +102,10 @@ func (l *LxdExecutor) Setup(docID string) error {
 	)
 
 	l.Executor.WaitSleep = waitSleep
+	// We use always lxd-compose P2P Mode because we haven't
+	// remote name in task specs
+	l.Executor.SetP2PMode(true)
+	l.Executor.SetLocalDisable(l.Config.GetAgent().LxdDisableLocal)
 
 	err = l.Executor.Setup()
 	if err != nil {
@@ -134,7 +137,7 @@ func (l *LxdExecutor) ResolveCachedImage(task_info tasks.Task) (string, bool, st
 
 			if len(task_info.CacheClean) == 0 {
 
-				if imageFingerprint, _, _, _ = l.FindImage(sharedName); imageFingerprint != "" {
+				if imageFingerprint, _, _, _ = l.Executor.FindImage(sharedName, ""); imageFingerprint != "" {
 					l.Report("Cached image found: " + imageFingerprint + " " + sharedName)
 					if imageFingerprint, err = l.PullImage(imageFingerprint); err != nil {
 						return "", cachedImage, sharedName, err
@@ -417,13 +420,13 @@ func (l *LxdExecutor) HandleCacheImagePush(exec *StateExecution, mapping Artefac
 		l.Report("Try to clean artefacts and storage directories from container before create cached image...")
 
 		// Delete old directories of storage and artefacts
-		err = l.DeleteContainerDirRecursive(containerName, mapping.ArtefactPath)
+		err = l.Executor.DeleteContainerDir(containerName, mapping.ArtefactPath)
 		if err != nil {
 			l.Report("WARNING: Error on clean artefacts dir on container: " + err.Error())
 			// Ignore error. I'm not sure that is the right thing.
 		}
 
-		err = l.DeleteContainerDirRecursive(containerName, mapping.StoragePath)
+		err = l.Executor.DeleteContainerDir(containerName, mapping.StoragePath)
 		if err != nil {
 			l.Report("WARNING: Error on clean storage dir on container: " + err.Error())
 			// Ignore error. I'm not sure that is the right thing.
@@ -469,55 +472,6 @@ func (l *LxdExecutor) HandleCacheImagePush(exec *StateExecution, mapping Artefac
 	return nil
 }
 
-func (l *LxdExecutor) FindImage(image string) (string, lxd.ImageServer, string, error) {
-	var err error
-	var tmp_srv, srv lxd.ImageServer
-	var img, tmp_img *lxd_api.Image
-	var fingerprint string = ""
-	var srv_name string = ""
-
-	for remote, server := range l.Executor.LxdConfig.Remotes {
-		tmp_srv, err = l.Executor.LxdConfig.GetImageServer(remote)
-		if err != nil {
-			err = nil
-			l.Report(fmt.Sprintf(
-				"Error on retrieve ImageServer for remote %s at addr %s",
-				remote, server.Addr,
-			))
-			continue
-		}
-		tmp_img, err = l.Executor.GetImage(image, tmp_srv)
-		if err != nil {
-			// POST: No image found with input alias/fingerprint.
-			//       I go ahead to next remote
-			err = nil
-			continue
-		}
-
-		if img != nil {
-			// POST: A previous image is already found
-			if tmp_img.CreatedAt.After(img.CreatedAt) {
-				img = tmp_img
-				srv = tmp_srv
-				srv_name = remote
-				fingerprint = img.Fingerprint
-			}
-		} else {
-			// POST: first image matched
-			img = tmp_img
-			fingerprint = img.Fingerprint
-			srv = tmp_srv
-			srv_name = remote
-		}
-	}
-
-	if fingerprint == "" {
-		err = fmt.Errorf("No image found with alias or fingerprint %s", image)
-	}
-
-	return fingerprint, srv, srv_name, err
-}
-
 func (l *LxdExecutor) PullImage(imageAlias string) (string, error) {
 	var err error
 	var imageFingerprint, remote_name string
@@ -526,7 +480,7 @@ func (l *LxdExecutor) PullImage(imageAlias string) (string, error) {
 	l.Report("Searching image: " + imageAlias)
 
 	// Find image hashing id
-	imageFingerprint, remote, remote_name, err = l.FindImage(imageAlias)
+	imageFingerprint, remote, remote_name, err = l.Executor.FindImage(imageAlias, "")
 	if err != nil {
 		return "", err
 	}
@@ -599,58 +553,6 @@ func (l *LxdExecutor) ExecCommand(execution *StateExecution, targetHomeDir strin
 	}
 
 	return execution.Result, execution.Error
-}
-
-//
-func (l *LxdExecutor) recursiveListFile(nameContainer string, targetPath string, list *list.List) error {
-	buf, resp, err := l.Executor.LxdClient.GetContainerFile(nameContainer, targetPath)
-	if err != nil {
-		return err
-	}
-	if buf != nil {
-		// Needed to avoid: dial unix /var/lib/lxd/unix.socket: socket: too many open files
-		buf.Close()
-	}
-
-	if resp.Type == "directory" {
-		for _, ent := range resp.Entries {
-			nextP := path.Join(targetPath, ent)
-			err = l.recursiveListFile(nameContainer, nextP, list)
-			if err != nil {
-				return err
-			}
-		}
-		list.PushBack(targetPath)
-	} else if resp.Type == "file" || resp.Type == "symlink" {
-		list.PushFront(targetPath)
-
-	} else {
-		l.Report("Find unsupported file type " + resp.Type + ". Skipped.")
-	}
-
-	return nil
-}
-
-func (l *LxdExecutor) DeleteContainerDirRecursive(containerName, dir string) error {
-	var err error
-	var list *list.List = list.New()
-
-	// Create list of files/directories to remove. (files are pushed before directories)
-	err = l.recursiveListFile(containerName, dir, list)
-	if err != nil {
-		return err
-	}
-
-	for e := list.Front(); e != nil; e = e.Next() {
-		l.Report(fmt.Sprintf("Removing old cache file %s...", e.Value.(string)))
-		err = l.Executor.LxdClient.DeleteContainerFile(containerName, e.Value.(string))
-		if err != nil {
-			l.Report(fmt.Sprintf("ERROR: Error on removing %s: %s",
-				e.Value, err.Error()))
-		}
-	}
-
-	return nil
 }
 
 func (l *LxdExecutor) GetContainerName(task *tasks.Task) string {

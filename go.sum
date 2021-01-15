@@ -64,6 +64,8 @@ github.com/MottainaiCI/lxd-compose v0.6.1-0.20210112230627-63139879098c h1:jnCMd
 github.com/MottainaiCI/lxd-compose v0.6.1-0.20210112230627-63139879098c/go.mod h1:x8LbnfHRpFQ64uHOxf+TB/Zn1lw2Nn0tnOLVvRRTHJA=
 github.com/MottainaiCI/lxd-compose v0.6.1-0.20210113185245-d744ea2ab9b4 h1:YL18bmkNNhaTCnKoakIldKUf2EFWGb4U7edElEOsjPE=
 github.com/MottainaiCI/lxd-compose v0.6.1-0.20210113185245-d744ea2ab9b4/go.mod h1:x8LbnfHRpFQ64uHOxf+TB/Zn1lw2Nn0tnOLVvRRTHJA=
+github.com/MottainaiCI/lxd-compose v0.6.1-0.20210115070738-09323dad26f0 h1:d/KjLLoIdAZKqzveUUjpJAMT7Y+QJfDThRFqXko31lA=
+github.com/MottainaiCI/lxd-compose v0.6.1-0.20210115070738-09323dad26f0/go.mod h1:x8LbnfHRpFQ64uHOxf+TB/Zn1lw2Nn0tnOLVvRRTHJA=
 github.com/MottainaiCI/mottainai-cli v0.0.0-20201020080515-9b8c52d6981f/go.mod h1:gIC8uNLKmrb/ygbMlQDlOCjfRixqVq4PyZs4M9JKsrk=
 github.com/MottainaiCI/mottainai-server v0.0.0-20201221214818-1dcf111024fa h1:VCdCEJIb/fB4Mj0eeFfCmmOd2YfQIenoVqgJNLvxt7o=
 github.com/MottainaiCI/mottainai-server v0.0.0-20201221214818-1dcf111024fa/go.mod h1:X5O37ZYHWdTOCgmes6O5/XsS1YY9AgKfXSBIu+seKtM=
@@ -71,6 +73,8 @@ github.com/MottainaiCI/mottainai-server v0.0.0-20210113070111-80779bb30925 h1:41
 github.com/MottainaiCI/mottainai-server v0.0.0-20210113070111-80779bb30925/go.mod h1:Abo4q5a6pOjTjuM2/5a8Cx3ChXLseS20RVVeKMyEJSQ=
 github.com/MottainaiCI/mottainai-server v0.0.0-20210113190318-374d792f9b72 h1:C6k2Ms4TQ8T2ftGOPaiIHCKQvMYvets8bM5NUfFxGXw=
 github.com/MottainaiCI/mottainai-server v0.0.0-20210113190318-374d792f9b72/go.mod h1:ShMg0ko/CjSqz4EuhhJi8zEp56qdUscIubcFtjHDr0g=
+github.com/MottainaiCI/mottainai-server v0.0.0-20210115074204-ffc94aa62436 h1:LojifDB2x5fEYAu7hBhXNKIGffYb93j0R2g2FmOUTeo=
+github.com/MottainaiCI/mottainai-server v0.0.0-20210115074204-ffc94aa62436/go.mod h1:cAfSJlQhkqarXeozGFOopHqfViRFZHszHOncKZMtvx8=
 github.com/MottainaiCI/passlib v1.0.11-0.20180705154449-f6527380e5ed h1:uxP3Fj4UJI1H5GGeDHik48S6BdqOxFNkWl45Lt5jT0Q=
 github.com/MottainaiCI/passlib v1.0.11-0.20180705154449-f6527380e5ed/go.mod h1:XpLnxYiN5STC8FbtHC01MvybTix8Ozn0bw9Hxgjvr2A=
 github.com/MottainaiCI/vagrantutil v0.0.0-20181027083936-c8f45988a24e h1:WQ8ArFv/GpnDnnEMMK0BHr/BKyrie0YCdwGlMm7c7qY=
